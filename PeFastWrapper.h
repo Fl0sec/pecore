@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <bit>
 #include <charconv>
 #include <cstdint>
@@ -575,6 +576,36 @@ public:
 
 	// --- Sections -------------------------------------------------------
 
+	[[nodiscard]] std::span<const std::byte> getSectionByName ( const std::string_view name, DWORD flags = IMAGE_SCN_MEM_READ ) const noexcept {
+
+		if ( name.empty ( ) || name.length ( ) > IMAGE_SIZEOF_SHORT_NAME )
+			return {};
+
+		const auto imageSize = getSizeOfImage ( );
+		if ( !imageSize )
+			return {};
+
+		for ( const auto& section : getSectionHeaders ( ) )
+		{
+			if ( flags != 0 && !( section.Characteristics & flags ) )
+				continue;
+
+			// Name is a fixed 8-byte field, not necessarily null-terminated when exactly
+			// 8 chars long -- compare the trimmed full field so a search for ".tex" can't
+			// false-match ".text".
+			const std::string_view sectionName { reinterpret_cast< const char* >( section.Name ), IMAGE_SIZEOF_SHORT_NAME };
+
+			if ( sectionName.substr ( 0, sectionName.find ( '\0' ) ) != name || section.VirtualAddress >= *imageSize )
+				continue;
+
+			const auto remaining = static_cast< std::size_t >( *imageSize - section.VirtualAddress );
+			const auto sectionSize = std::min< std::size_t >( section.Misc.VirtualSize, remaining );
+			return { base ( ) + section.VirtualAddress, sectionSize };
+		}
+
+		return {};
+	}
+
 	[[nodiscard]] std::span<const std::byte> getVmtSection ( ) const noexcept {
 		return getSectionByName ( ".rdata" );
 	}
@@ -602,10 +633,18 @@ public:
 	}
 
 	[[nodiscard]] const IMAGE_SECTION_HEADER* getSectionContaining ( DWORD rva ) const noexcept {
+		const auto imageSize = getSizeOfImage ( );
+		if ( !imageSize || rva >= *imageSize )
+			return nullptr;
 
 		for ( const auto& section : getSectionHeaders ( ) )
 		{
-			if ( rva >= section.VirtualAddress && rva < section.VirtualAddress + section.Misc.VirtualSize )
+			if ( section.VirtualAddress >= *imageSize )
+				continue;
+
+			const auto remaining = static_cast< std::size_t >( *imageSize - section.VirtualAddress );
+			const auto sectionSize = std::min< std::size_t >( section.Misc.VirtualSize, remaining );
+			if ( rva >= section.VirtualAddress && static_cast< std::size_t >( rva - section.VirtualAddress ) < sectionSize )
 				return &section;
 		}
 
@@ -855,27 +894,6 @@ private:
 
 		return functionRva >= exportDataDirectory.VirtualAddress && functionRva - exportDataDirectory.VirtualAddress < exportDataDirectory.Size; // Is functionRva within the export directory memory range ?
 
-	}
-
-	[[nodiscard]] __forceinline std::span<const std::byte> getSectionByName ( const std::string_view name, DWORD flags = IMAGE_SCN_MEM_READ ) const noexcept {
-
-		if ( name.length ( ) > IMAGE_SIZEOF_SHORT_NAME )
-			return {};
-
-		for ( const auto& section : getSectionHeaders ( ) )
-		{
-			if ( !( section.Characteristics & flags ) )
-				continue;
-
-			// Name is a fixed 8-byte field, not necessarily null-terminated when exactly
-			// 8 chars long -- compare the trimmed full field so a search for ".tex" can't
-			// false-match ".text".
-			const std::string_view sectionName { reinterpret_cast< const char* >( section.Name ), IMAGE_SIZEOF_SHORT_NAME };
-
-			if ( sectionName.substr ( 0, sectionName.find ( '\0' ) ) == name )
-				return { base ( ) + section.VirtualAddress, section.Misc.VirtualSize };
-		}
-		return {};
 	}
 
 	[[nodiscard]] __forceinline const IMAGE_NT_HEADERS64* getNtHeader ( ) const noexcept {

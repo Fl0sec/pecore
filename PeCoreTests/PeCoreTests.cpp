@@ -131,6 +131,24 @@ TEST_CASE( "real module: kernel32.dll" ) {
         }
     }
 
+    SUBCASE( "named section spans stay within the mapped image" ) {
+        const auto imageSize = static_cast<std::size_t>( *wrapper->getSizeOfImage( ) );
+
+        for ( const auto& section : wrapper->getSectionHeaders( ) )
+        {
+            const std::string_view name { reinterpret_cast<const char*>( section.Name ), IMAGE_SIZEOF_SHORT_NAME };
+            const auto trimmedName = name.substr( 0, name.find( '\0' ) );
+            if ( trimmedName.empty( ) )
+                continue;
+
+            const auto span = wrapper->getSectionByName( trimmedName, 0 );
+            REQUIRE_FALSE( span.empty( ) );
+            CHECK( span.data( ) >= reinterpret_cast<const std::byte*>( mod ) );
+            CHECK( span.size( ) <= imageSize );
+            CHECK( static_cast<std::size_t>( span.data( ) - reinterpret_cast<const std::byte*>( mod ) ) + span.size( ) <= imageSize );
+        }
+    }
+
     SUBCASE( "PDB70 info, if present, looks sane" ) {
         if ( auto pdb = wrapper->getPdb70Info( ) )
         {
