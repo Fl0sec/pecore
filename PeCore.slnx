@@ -3,6 +3,6 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="PeCore.vcxproj" />
-  <Project Path="PeCoreTests\PeCoreTests.vcxproj" />
+  <Project Path="PeCore.vcxproj" Id="21f91847-c1d4-4497-b366-884783759b38" />
+  <Project Path="PeCoreTests\PeCoreTests.vcxproj" Id="8c2e5a2e-6b3e-4c7b-9c0f-3e8b6c0b9a21" />
 </Solution>
