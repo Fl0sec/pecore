@@ -1,7 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 
-#include "../PeFastWrapper.h"
+#include <pecore/PeFastWrapper.h>
 #include <vector>
 #include <cstring>
 
@@ -166,7 +166,7 @@ TEST_CASE( "real module: the test executable itself" ) {
     CHECK_FALSE( wrapper->isManagedAssembly( ) );
     CHECK( wrapper->getCor20Header( ) == nullptr );
 
-    SUBCASE( "own PDB70 info is present (Debug build always embeds one)" ) {
+    SUBCASE( "own PDB70 info is present (the build always links with /DEBUG)" ) {
         auto pdb = wrapper->getPdb70Info( );
         REQUIRE( pdb.has_value( ) );
         CHECK_FALSE( pdb->pdbPath.empty( ) );

@@ -33,3 +33,7 @@ Win32/
 # VC++ browsing database
 *.VC.db
 *.VC.VC.opendb
+
+# CMake
+build/
+out/
