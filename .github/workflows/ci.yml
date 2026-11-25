@@ -1,0 +1,24 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, Win32]
+        config: [Release, Debug]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -A ${{ matrix.arch }}
+      - name: Build
+        run: cmake --build build --config ${{ matrix.config }}
+      - name: Test
+        run: ctest --test-dir build -C ${{ matrix.config }} --output-on-failure
+      - name: pedump
+        run: build/${{ matrix.config }}/pedump.exe kernel32.dll HeapAlloc
